@@ -36,12 +36,13 @@ if (((mca_coll_vhx_module_t * ) module) -> initialized == false) {
 int pvt_seq;;;
 int hier_size = vhx_module -> hierarchy_size;
 int first_reduction_done = 0;
-int do_cico = 1; //TODO, XPMEM support temporarily broken due to recent "refactoring" after discovering erroneous execution
+int do_cico = (bytes_total <= OMPI_vhx_CICO_MAX);
+
 
 for (int i = 0; i < hier_size; i++) {
   vhx_hier_group_t * hier_group = & (vhx_module -> hier_groups[i]);
-  //hier_group->shared_ctrl_vars[rank].rbuf_vaddr = rbuf;
-  //hier_group->shared_ctrl_vars[rank].sbuf_vaddr = sbuf;
+  hier_group->shared_ctrl_vars[rank].rbuf_vaddr = rbuf;
+  hier_group->shared_ctrl_vars[rank].sbuf_vaddr = sbuf;
 
   if (rank == hier_group -> leader) {
     pvt_seq = ++(vhx_module -> hier_groups[i].shared_ctrl_vars[rank].coll_seq);
@@ -53,16 +54,24 @@ for (int i = 0; i < hier_size; i++) {
 
       while (hier_group -> shared_ctrl_vars[hier_group -> real_members[j]].coll_seq != pvt_seq);
       opal_atomic_rmb();
-
+		if(!do_cico){
+			mca_coll_vhx_get_rank_reg(hier_group -> real_members[j], hier_group->shared_ctrl_vars[hier_group -> real_members[j]].sbuf_vaddr,
+				bytes_total, &(hier_group->sbuf_regs[hier_group -> real_members[j]]), vhx_module, ompi_comm, &hier_group->neighbour_sbufs[hier_group -> real_members[j]]);  
+			mca_coll_vhx_get_rank_reg(hier_group -> real_members[j], hier_group->shared_ctrl_vars[hier_group -> real_members[j]].rbuf_vaddr,
+				bytes_total, &(hier_group->rbuf_regs[hier_group -> real_members[j]]), vhx_module, ompi_comm, &hier_group->neighbour_rbufs[hier_group -> real_members[j]]);  
+		}				
+				
       if (!first_reduction_done) {
-        ompi_3buff_op_reduce(op, do_cico ? vhx_module -> neighbour_cico_buffers[hier_group -> real_members[j]] : hier_group -> shared_ctrl_vars[hier_group -> real_members[j]].sbuf_vaddr, sbuf, (do_cico) ? vhx_module -> cico_buffer : rbuf, count, datatype);
+        ompi_3buff_op_reduce(op, do_cico ? vhx_module -> neighbour_cico_buffers[hier_group -> real_members[j]] : hier_group -> neighbour_sbufs[hier_group -> real_members[j]], sbuf, (do_cico) ? vhx_module -> cico_buffer :rbuf, count, datatype);
         first_reduction_done++;
-      } else
-        ompi_op_reduce(op, do_cico ? vhx_module -> neighbour_cico_buffers[hier_group -> real_members[j]] : hier_group -> shared_ctrl_vars[hier_group -> real_members[j]].rbuf_vaddr, (do_cico) ? vhx_module -> cico_buffer : rbuf, count, datatype);
+      } else if (i == 0) //in the first level we use sendbufs as input in no CICO
+			ompi_op_reduce(op, do_cico ? vhx_module -> neighbour_cico_buffers[hier_group -> real_members[j]] : hier_group -> neighbour_sbufs[hier_group -> real_members[j]], (do_cico) ? vhx_module -> cico_buffer : rbuf, count, datatype);
+	   else  // in the next levels, rnuf as eused as input sincethey contain the product of previous reductions in no CICO
+		    ompi_op_reduce(op, do_cico ? vhx_module -> neighbour_cico_buffers[hier_group -> real_members[j]] : hier_group -> neighbour_rbufs[hier_group -> real_members[j]], (do_cico) ? vhx_module -> cico_buffer : rbuf, count, datatype);
 
     }
     if (i == hier_size - 1 && do_cico)
-      memcpy(rbuf, vhx_module -> cico_buffer, bytes_total);
+      memcpy(rbuf, vhx_module -> cico_buffer, bytes_total); // in no CICO we need to copy the product of the final reduction to its recv buffer
     opal_atomic_wmb();
     for (int j = 0; j < hier_group -> real_size; j++)
       hier_group -> shared_ctrl_vars[hier_group -> real_members[j]].coll_ack = pvt_seq;
@@ -84,31 +93,37 @@ if (bcast) {
   pvt_seq = (vhx_module -> hier_groups[0].shared_ctrl_vars[rank].coll_seq) + 1;
 
   int root = vhx_module -> hier_groups[hier_size - 1].leader;
-  for (int i = hier_size - 1; i >= 0; i--) {
+   for (int i = hier_size - 1; i >= 0; i--) {
     vhx_hier_group_t * hier_group = & (vhx_module -> hier_groups[i]);
 
-   
+    
       (hier_group -> shared_ctrl_vars[rank].coll_seq) = pvt_seq;
     if (rank == hier_group -> leader) {
 
       opal_atomic_wmb();
 
       vhx_module -> hier_groups[i].shared_ctrl_vars[rank].coll_ack = pvt_seq; // we need the root's ack counter to be equal to pvt for consistency
-      if (i == 0 && rank != root)
+      if (i == 0 && rank != root && do_cico)
         memcpy(rbuf, (char * )(vhx_module -> cico_buffer), bytes_total);
 
-      for (int j = 0; j < hier_group -> real_size; j++){
-        WAIT_FLAG( & (hier_group -> shared_ctrl_vars[hier_group -> real_members[j]].coll_ack), pvt_seq);
-
-	  }
+      for (int i = 0; i < hier_group -> real_size; i++)  //Waiting for the acks of the hierarchy group
+        WAIT_FLAG( & (hier_group -> shared_ctrl_vars[hier_group -> real_members[i]].coll_ack), pvt_seq);
 
     } else if (hier_group -> real_members_bitmap[rank] == 1) {
 
       WAIT_FLAG( & (vhx_module -> hier_groups[i].shared_ctrl_vars[hier_group -> leader].coll_seq), pvt_seq);
-
-
-      memcpy((i == 0) ? rbuf : (char * )(vhx_module -> cico_buffer), (char * )(vhx_module -> neighbour_cico_buffers[hier_group -> leader]), bytes_total);
-      opal_atomic_wmb();
+	  opal_atomic_rmb();
+ 
+	  if (do_cico)
+		memcpy((i == 0) ? rbuf : (char * )(vhx_module -> cico_buffer), (char * )(vhx_module -> neighbour_cico_buffers[hier_group -> leader]), bytes_total); // on the bottom we need to write to buf even in cico scenarios
+      else{
+		
+		mca_coll_vhx_get_rank_reg(hier_group->leader, hier_group->shared_ctrl_vars[hier_group->leader].rbuf_vaddr,
+				bytes_total, &(hier_group->rbuf_regs[hier_group->leader]), vhx_module, ompi_comm, &hier_group->neighbour_rbufs[hier_group->leader]);  
+	
+		 memcpy( rbuf, (char * )(hier_group->neighbour_rbufs[hier_group->leader]), bytes_total); 
+		 
+	  }	opal_atomic_wmb();
       hier_group -> shared_ctrl_vars[rank].coll_ack = pvt_seq;
 
     }

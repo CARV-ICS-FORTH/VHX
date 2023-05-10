@@ -84,7 +84,7 @@ mca_coll_vhx_component_t mca_coll_vhx_component = {
 	
 	.priority = 0,
 	.print_info = false,
-	.cico_max = 1500000,
+	.cico_max = 1024,
 	.shmem_backing = NULL,
 
 	.hierarchy_mca = "numa,socket",

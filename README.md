@@ -15,8 +15,8 @@ A basic feature of VHX is the construction of a n-level hierarchy based on topol
         
 * XPMEM/CICO support
 
-VHX supports **zero-copy** data transfer (specifically XPMEM, currently in a debugging state-unstable)
-        -Implementd using OPAL's Registration Cache to improve performance
+VHX supports **zero-copy** data transfer (specifically XPMEM)
+        -Implemented using OPAL's SMSC library
         -Generally used for data large message sizes (can be configured)
 
 In addition, **copy-in-copy-out** (CICO) data transportation can be used for messages of smaller sizes or when XPMEM is not available

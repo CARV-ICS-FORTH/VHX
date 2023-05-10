@@ -68,11 +68,12 @@ mca_coll_base_module_t *mca_coll_vhx_module_comm_query(
 	
 	module->coll_module_enable = mca_coll_vhx_module_enable;
 	module->coll_barrier = mca_coll_vhx_barrier;
+	if(mca_smsc == NULL)
+		mca_smsc_base_select();
 	module->coll_bcast = mca_coll_vhx_bcast;
 	module->coll_allreduce = mca_coll_vhx_allreduce;
 	//module->coll_reduce = mca_coll_vhx_reduce;
-	if(mca_smsc == NULL)
-		mca_smsc_base_select();
+	
 
 	
 	
