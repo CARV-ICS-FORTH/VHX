@@ -17,7 +17,7 @@ sources = \
 	coll_vhx_barrier.c\
 	coll_vhx_bcast.c \
 	coll_vhx_allreduce.c \
-	coll_vhx_reduce
+	coll_vhx_reduce.c
 	
 # Make the output library in this directory, and name it either
 # mca_<type>_<name>.la (for DSO builds) or libmca_<type>_<name>.la
