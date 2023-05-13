@@ -72,7 +72,7 @@ mca_coll_base_module_t *mca_coll_vhx_module_comm_query(
 		mca_smsc_base_select();
 	module->coll_bcast = mca_coll_vhx_bcast;
 	module->coll_allreduce = mca_coll_vhx_allreduce;
-	//module->coll_reduce = mca_coll_vhx_reduce;
+	module->coll_reduce = mca_coll_vhx_reduce;
 	
 
 	
@@ -102,7 +102,7 @@ int mca_coll_vhx_module_enable(mca_coll_base_module_t *module,
 	SAVE_COLL(vhx_module->prev_colls, barrier);
 	SAVE_COLL(vhx_module->prev_colls, bcast);
 	SAVE_COLL(vhx_module->prev_colls, allreduce);
-//	SAVE_COLL(vhx_module->prev_colls, reduce);
+	SAVE_COLL(vhx_module->prev_colls, reduce);
 	
 	if(vhx_module_prepare_hierarchy(vhx_module, comm) != 0) {
 		status = OMPI_ERROR;
@@ -131,7 +131,7 @@ vhx_coll_fns_t vhx_module_set_fns(ompi_communicator_t *comm,
 	SAVE_COLL(current, barrier);
 	SAVE_COLL(current, bcast);
 	SAVE_COLL(current, allreduce);
-//	SAVE_COLL(current, reduce);
+	SAVE_COLL(current, reduce);
 	
 	(void) status; 
 	
@@ -139,7 +139,7 @@ vhx_coll_fns_t vhx_module_set_fns(ompi_communicator_t *comm,
 	SET_COLL(new, bcast);
 	SET_COLL(new, allreduce);
 
-	//SET_COLL(new, reduce);
+	SET_COLL(new, reduce);
 	
 	return current;
 }
