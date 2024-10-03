@@ -24,16 +24,6 @@ const char *mca_coll_vhx_component_version_string =
 
 static int vhx_register(void);
 
-static const char *topo_locs_str[] = {
-	"node", "flat",
-	"socket",
-	"numa",
-	"l3", "l3cache",
-	"l2", "l2cache",
-	"l1", "l1cache",
-	"core",
-	"hwthread", "thread"
-};
 
 
 
@@ -86,9 +76,11 @@ mca_coll_vhx_component_t mca_coll_vhx_component = {
 	.print_info = false,
 	.cico_max = 1024,
 	.shmem_backing = NULL,
-
+	.chunk_size = 16384, 
 	.hierarchy_mca = "numa,socket",
-
+	.vector_copy = 1,
+	.vectors_number = 1,
+	.vector_elem_size = 1
 	
 	
 	
@@ -123,9 +115,24 @@ static int vhx_register(void) {
 		MCA_BASE_VAR_SCOPE_READONLY, &mca_coll_vhx_component.hierarchy_mca);
 	
 	free(desc); desc = NULL;
+	(void) mca_base_component_var_register(&mca_coll_vhx_component.super.collm_version,
+	"chunk_size", "Chunk Size for VHX's pipelining",
+	MCA_BASE_VAR_TYPE_SIZE_T, NULL, 0, 0, OPAL_INFO_LVL_5,
+	MCA_BASE_VAR_SCOPE_READONLY, &mca_coll_vhx_component.chunk_size);
 	
-	
-	
+	(void) mca_base_component_var_register(&mca_coll_vhx_component.super.collm_version,
+		"cico_max", "CICO switchover size",
+		MCA_BASE_VAR_TYPE_SIZE_T, NULL, 0, 0, OPAL_INFO_LVL_5,
+		MCA_BASE_VAR_SCOPE_READONLY, &mca_coll_vhx_component.cico_max);
+	(void) mca_base_component_var_register(&mca_coll_vhx_component.super.collm_version,
+		"vectors_number", "Number of vectros used in Vector Copy",
+		MCA_BASE_VAR_TYPE_SIZE_T, NULL, 0, 0, OPAL_INFO_LVL_5,
+		MCA_BASE_VAR_SCOPE_READONLY, &mca_coll_vhx_component.vectors_number);	
+		
+			(void) mca_base_component_var_register(&mca_coll_vhx_component.super.collm_version,
+		"vector_elem_size", desc, MCA_BASE_VAR_TYPE_SIZE_T, NULL, 0, 0, OPAL_INFO_LVL_5,
+		MCA_BASE_VAR_SCOPE_READONLY, &mca_coll_vhx_component.vector_elem_size);
+		
 	mca_coll_vhx_component.shmem_backing = (access("/dev/shm", W_OK) == 0 ?
 		"/dev/shm" : opal_process_info.job_session_dir);
 	
@@ -134,4 +141,4 @@ static int vhx_register(void) {
 	return OMPI_SUCCESS;
 }
 
-
+ 

@@ -57,6 +57,7 @@
 	typedef uint8_t vhx_atomic_int;
 #endif
 // ---
+typedef size_t __attribute__((aligned(SIZEOF_SIZE_T))) vhx_size_t;
 
 // Align to cache line 
 #define OMPI_vhx_CTRL_ALIGN 64
@@ -64,7 +65,9 @@
 #define OMPI_vhx_OPAL_PROGRESS_CYCLE 10000
 
 #define OMPI_vhx_CICO_MAX (mca_coll_vhx_component.cico_max)
-
+#define OMPI_vhx_CHUNK_SIZE (mca_coll_vhx_component.chunk_size)
+#define OMPI_vhx_VECTORS_NUMBER (mca_coll_vhx_component.vectors_number)
+#define OMPI_vhx_VECTOR_ELEM_SIZE (mca_coll_vhx_component.vector_elem_size)
 
 
 BEGIN_C_DECLS
@@ -152,7 +155,11 @@ struct mca_coll_vhx_component_t {
 	int cico_max;
 	char *shmem_backing;
 	char * hierarchy_mca;
-	size_t xpmem_align;
+	size_t chunk_size;
+	int vector_copy;
+	size_t vector_elem_size;
+	size_t vectors_number;
+
 };
 
 
@@ -167,7 +174,7 @@ struct mca_coll_vhx_module_t {
 	vhx_ds  leader_cico_ds;
 	vhx_ds  cico_ds;
 	vhx_ds * neighbour_cico_ds;
-	
+	int pvt_coll_seq;
 	
 	mca_rcache_base_module_t **rcaches;
 	volatile shared_ctrl_vars_t *shared_ctrl_vars;
@@ -188,6 +195,8 @@ struct shared_ctrl_vars_t {
 	volatile vhx_atomic_int coll_seq __attribute__((aligned(64)));
 	void* volatile sbuf_vaddr;
 	void* volatile rbuf_vaddr;	
+	volatile vhx_size_t bytes_available  __attribute__((aligned(64)));
+	volatile vhx_size_t reduce_ready_chunks;
 
 } __attribute__((aligned(64)));;
 
@@ -195,6 +204,7 @@ struct shared_ctrl_vars_t {
 struct vhx_hier_group_t { 
 	int leader;
 	vhx_ds sync_ds; //each rank creates its own set of shared ctrl varuables. Normally only the leader of each group needs to do it but we must consider the scenario where a collective's root (chosen by the user) is not a leader
+	vhx_ds members_sync_ds;
 	int * members_bitmap;
 	int * members;
 	int * real_members;
@@ -205,6 +215,8 @@ struct vhx_hier_group_t {
 	int hier_level;
 	vhx_ds  cico_ds;
 	volatile shared_ctrl_vars_t *shared_ctrl_vars; //the set of ctrl variables for the rank
+	struct vhx_member_ctrl_t *members_shared_ctrl_vars;
+
 	void *cico_buffer;
 	vhx_reg_t ** sbuf_regs ;
 	void ** neighbour_sbufs;		
@@ -213,7 +225,21 @@ struct vhx_hier_group_t {
 
 };
 
-
+struct vhx_member_ctrl_t {
+	volatile vhx_atomic_int member_ack; // written by member
+	
+	// written by member, at beginning of operation
+	volatile vhx_atomic_int member_seq __attribute__((aligned(64)));
+	volatile int rank;
+	
+	void* volatile sbuf_vaddr;
+	void* volatile rbuf_vaddr;
+	volatile int cico_id;
+	
+	// reduction progress counters, written by member
+	//volatile xf_int_t reduce_ready;
+	//volatile xf_int_t reduce_done;
+} __attribute__((aligned(64)));
 
 // ----------------------------------------
 

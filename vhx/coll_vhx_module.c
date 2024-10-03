@@ -137,7 +137,7 @@ vhx_coll_fns_t vhx_module_set_fns(ompi_communicator_t *comm,
 	
 	SET_COLL(new, barrier);
 	SET_COLL(new, bcast);
-	SET_COLL(new, allreduce);
+    SET_COLL(new, allreduce);
 
 	SET_COLL(new, reduce);
 	
