@@ -38,6 +38,8 @@ int init_bytes_ready_allreduce(int my_rank, vhx_module_t * module, size_t chunks
 
   for (int i = 0; i < hier_size; i++) {
     vhx_hier_group_t * hier_group = & (vhx_module -> hier_groups[i]);
+		  WAIT_FLAG(& hier_group -> shared_ctrl_vars[0].coll_ack, pvt_seq - 1);
+
     if (hier_group -> real_members_bitmap[my_rank] == 1) {
 
       volatile size_t __attribute__((aligned(SIZEOF_SIZE_T))) * tmp_bytes_available = & (hier_group -> shared_ctrl_vars[0].bytes_available);
@@ -94,20 +96,22 @@ int reduce_internal_cico(const void * sbuf, void * rbuf,
   int first_reduction_done = -chunks + 1;
 
   int has_remainder = remainder ? 1 : 0;
-  init_bytes_ready_allreduce(rank, vhx_module, chunks, (vhx_module -> hier_groups[0].shared_ctrl_vars[rank].coll_seq));
+  init_bytes_ready_allreduce(rank, vhx_module, chunks, pvt_seq);
   for (int i = 0; i < hier_size; i++) {
     vhx_hier_group_t * hier_group = & (vhx_module -> hier_groups[i]);
     hier_group -> shared_ctrl_vars[rank].rbuf_vaddr = rbuf;
     hier_group -> shared_ctrl_vars[rank].sbuf_vaddr = sbuf;
     if (rank == hier_group -> leader) {
+	//	printf(" i am leader %d lvl %d\n", rank, i);
       hier_group -> shared_ctrl_vars[rank].coll_seq = pvt_seq;
       for (int j = 0; j < hier_group -> real_size; j++) { //waitng for SEQ wave
 
         if (hier_group -> real_members[j] == rank)
           continue;
-
-        while (hier_group -> members_shared_ctrl_vars[hier_group -> real_members[j]].member_seq != pvt_seq);
+	//	printf(" i am leader %d lvl %d  pre hhh\n", rank, i);
+        while (hier_group -> members_shared_ctrl_vars[hier_group -> real_members[j]].member_seq < pvt_seq);
         opal_atomic_rmb();
+	//	printf(" i am leader %d lvl %d  hhh\n", rank, i);
 
         if (!do_cico) {
           mca_coll_vhx_get_rank_reg(hier_group -> real_members[j], hier_group -> members_shared_ctrl_vars[hier_group -> real_members[j]].sbuf_vaddr,
@@ -142,22 +146,35 @@ int reduce_internal_cico(const void * sbuf, void * rbuf,
           if (i < hier_size - 1)
             set_bytes_ready_allreduce(rank, & (vhx_module -> hier_groups[i + 1]), reduced_chunks);
         }
-
+ 
       }
+	  if  ( hier_group -> real_size == 1 && i == 0){
+			   if(sbuf!= MPI_IN_PLACE)
+					memcpy(vhx_module->cico_buffer, sbuf, bytes_total); //TODO optimize?
+			   		       set_bytes_ready_allreduce(rank, & (vhx_module -> hier_groups[i + 1]), chunks);
+
+	  }
+
       if (i == hier_size - 1 && do_cico)
         vector_memcpy(rbuf, vhx_module -> cico_buffer, bytes_total,OMPI_vhx_VECTOR_ELEM_SIZE, OMPI_vhx_VECTORS_NUMBER); // in  CICO we need to copy the product of the final reduction to its recv buffer
       opal_atomic_wmb();
-      for (int j = 0; j < hier_group -> real_size; j++)
-        hier_group -> members_shared_ctrl_vars[hier_group -> real_members[j]].member_ack = pvt_seq;
+	  	//	printf("i am %d lvl %d xxx \n", rank, i);
 
+      for (int j = 0; j < hier_group -> real_size; j++){
+        hier_group -> members_shared_ctrl_vars[hier_group -> real_members[j]].member_ack = pvt_seq;
+	//	printf("i am %d lvl %d and made %d %d \n", rank, i, hier_group -> real_members[j], pvt_seq);
+	  }
     } else if (hier_group -> real_members_bitmap[rank] == 1) {
+		//		printf(" i am member %d lvl %d\n", rank, i);
+
       if (do_cico && i == 0)
         vector_memcpy(vhx_module -> cico_buffer, sbuf, bytes_total,OMPI_vhx_VECTOR_ELEM_SIZE, OMPI_vhx_VECTORS_NUMBER);
       opal_atomic_wmb();
 
       hier_group -> members_shared_ctrl_vars[rank].member_seq = pvt_seq;
 
-      while (hier_group -> members_shared_ctrl_vars[rank].member_ack != pvt_seq);
+      while (hier_group -> members_shared_ctrl_vars[rank].member_ack < pvt_seq)
+		;//  printf("i am %d lvl %d pvt seq %d memeber ack %d \n", rank,  i, pvt_seq, hier_group -> members_shared_ctrl_vars[rank].member_ack);
     }
 
   }
@@ -184,11 +201,11 @@ int reduce_internal_xpmem(const void * sbuf, void * rbuf,
   size_t chunks = (OMPI_vhx_CHUNK_SIZE && OMPI_vhx_CHUNK_SIZE < bytes_total) ? bytes_total / OMPI_vhx_CHUNK_SIZE : 1;
   int remainder = (OMPI_vhx_CHUNK_SIZE && OMPI_vhx_CHUNK_SIZE < bytes_total) ? bytes_total % OMPI_vhx_CHUNK_SIZE : 0;
   int has_remainder = remainder ? 1 : 0;
-  init_bytes_ready_allreduce(rank, vhx_module, 0, (vhx_module -> hier_groups[0].shared_ctrl_vars[rank].coll_seq));
+  init_bytes_ready_allreduce(rank, vhx_module, 0, pvt_seq);
   int complete_levels = 0;
   int first_reduction_done = 0;
   int reduced_chunks = 0;
-
+  int sbuf_memcpy = 0;
   if (sbuf != MPI_IN_PLACE)
   ; //memcpy(rbuf, (char *)sbuf,bytes_total);
   while (reduced_chunks < chunks + has_remainder) {
@@ -206,14 +223,19 @@ int reduce_internal_xpmem(const void * sbuf, void * rbuf,
           set_bytes_ready_allreduce(rank, & vhx_module -> hier_groups[0], chunks);
 
         (vhx_module -> hier_groups[i].members_shared_ctrl_vars[rank].member_seq) = pvt_seq;
-        //printf("rank %d waiting point 2\n", rank);
-        while (vhx_module -> hier_groups[i].members_shared_ctrl_vars[hier_group -> real_members[hier_group -> real_size - 1]].member_seq != pvt_seq);
-        //printf("rank %d waiting point 2 ended\n", rank);
+   //     printf("rank %d waiting point 2 lvl %d pvt_seq is %d and member_seq is %d \n", rank, i, pvt_seq, vhx_module -> hier_groups[i].members_shared_ctrl_vars[hier_group -> real_members[hier_group -> real_size - 1]].member_seq );
+        while (vhx_module -> hier_groups[i].members_shared_ctrl_vars[hier_group -> real_members[hier_group -> real_size - 1]].member_seq <pvt_seq);//{        printf("rank %d waiting point 2 lvl %d pvt_seq is %d and member_seq is %d \n", rank, i, pvt_seq, vhx_module -> hier_groups[i].members_shared_ctrl_vars[hier_group -> real_members[hier_group -> real_size - 1]].member_seq );
+//}
+   //     printf("rank %d waiting point 2 ended lvl %d \n", rank, i);
 
         int chunks_ready = 0;
         while (chunks_ready <= reduced_chunks)
           chunks_ready = __atomic_load_n( & (hier_group -> shared_ctrl_vars[hier_group -> real_members[hier_group -> real_size - 1]].reduce_ready_chunks), __ATOMIC_RELAXED);
         // 					return;
+        if (i == 0 && hier_group->real_size == 1 && sbuf != MPI_IN_PLACE && sbuf_memcpy == 0){
+          memcpy(rbuf, sbuf, bytes_total);
+          sbuf_memcpy++;
+        }
         if (i != hier_size - 1 && vhx_module -> hier_groups[i + 1].leader == rank) {
           set_bytes_ready_allreduce(rank, & vhx_module -> hier_groups[i + 1], reduced_chunks + 1);
         }
@@ -224,10 +246,14 @@ int reduce_internal_xpmem(const void * sbuf, void * rbuf,
 
       } else if (hier_group -> real_members_bitmap[rank] == 1) {
         int src_rank = get_left_neighbour(hier_group, rank);
+      //  printf("rank %d waiting point 3 lvl %d pvt_seq is %d and member_seq is %d \n", rank, i, pvt_seq, vhx_module -> hier_groups[i].members_shared_ctrl_vars[src_rank].member_seq );
 
-        WAIT_FLAG( & (vhx_module -> hier_groups[i].members_shared_ctrl_vars[src_rank].member_seq), pvt_seq);
+        while( (vhx_module -> hier_groups[i].members_shared_ctrl_vars[src_rank].member_seq) < pvt_seq);
+		
         opal_atomic_rmb();
-        int chunks_ready = 0;
+     //   printf("rank %d waiting point 3 ended lvl %d \n", rank, i);
+   
+   int chunks_ready = 0;
         do {
           chunks_ready = __atomic_load_n( & (hier_group -> shared_ctrl_vars[src_rank].reduce_ready_chunks), __ATOMIC_RELAXED);
         }
@@ -282,7 +308,7 @@ int init_bytes_ready_allreduce_bcast(int my_rank, vhx_module_t * module, size_t 
 
   for (int i = hier_size - 1; i >= 0; i--) {
     vhx_hier_group_t * hier_group = & (vhx_module -> hier_groups[i]);
-    //	WAIT_FLAG(& hier_group -> shared_ctrl_vars[0].coll_ack, pvt_seq - 1);
+  //  	WAIT_FLAG(& hier_group -> shared_ctrl_vars[0].coll_ack, pvt_seq - 1);
 
     if (hier_group -> leader != my_rank)
       continue;
@@ -298,7 +324,7 @@ int allreduce_bcast(void * buf, int count, ompi_datatype_t * datatype, int root,
 
   vhx_module_t * vhx_module = (vhx_module_t * ) module;
 
-  int pvt_seq = ++(vhx_module -> pvt_coll_seq);
+//  int pvt_seq = ++(vhx_module -> pvt_coll_seq);
   size_t dtype_size, bytes_total;
   ompi_datatype_type_size(datatype, & dtype_size);
   bytes_total = count * dtype_size;
@@ -389,7 +415,7 @@ int mca_coll_vhx_allreduce_internal(const void * sbuf, void * rbuf,
       ompi_comm, module, pvt_seq);
   else
     reduce_internal_xpmem(sbuf, rbuf,
-      count, datatype, op,
+     count, datatype, op,
       ompi_comm, module, pvt_seq);
   ///////BCAST/////////
   //printf("vjcskzhvks %d\n", rank);
