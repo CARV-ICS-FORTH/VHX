@@ -80,8 +80,7 @@ int create_shmem_regions(mca_coll_base_module_t * module,
     if (rank == vhx_module -> hier_groups[j].leader) {
       opal_asprintf( & shmem_ctrl, "rank%d_level%d_shared_ctrl_var_ompi_vhx_component", rank, j);
       vhx_module -> hier_groups[j].shared_ctrl_vars = vhx_shmem_create( & (vhx_module -> hier_groups[j].sync_ds), comm_size * sizeof(shared_ctrl_vars_t), shmem_ctrl);
-	  printf("shared_ctrl vars initialiazed size :%d \n", comm_size );
-	  printf("rank %d shared ctrl var 0: %p 1: %p 2: %p 3: %p \n", rank, &(vhx_module -> hier_groups[j].shared_ctrl_vars[0]), &(vhx_module -> hier_groups[j].shared_ctrl_vars[1]), &(vhx_module -> hier_groups[j].shared_ctrl_vars[2]),&( vhx_module -> hier_groups[j].shared_ctrl_vars[3]));
+
       free(shmem_ctrl);
 	  opal_asprintf( & shmem_ctrl, "rank%d_level%d_members_shared_ctrl_var_ompi_vhx_component", rank, j);
       vhx_module -> hier_groups[j].members_shared_ctrl_vars = vhx_shmem_create( & (vhx_module -> hier_groups[j].members_sync_ds), comm_size * sizeof(vhx_member_ctrl_t), shmem_ctrl);
@@ -147,12 +146,7 @@ int my_xpmem_init(mca_coll_base_module_t * module,
 
 #if defined(__riscv) 
 
-#define xstr(s) str(s)
-#define str(s) #s
 
-
-#define STR_HELPER(x) #x
-#define STR(x) STR_HELPER(x)
 
 // Macro to generate vector load and store instructions
 #define VLE8_V_REG(src, reg) "vle8.v v" STR(reg) ", (" src ")\n\t"
@@ -288,8 +282,8 @@ void *vector_memcpy_e16(void *dst, const void *src, size_t len, unsigned long in
                   : "0" (vl));
 
     
-    iterations = len / (vl * num_vectors);
-    remainder = len % (vl * num_vectors);
+    iterations = (len/sizeof(short)) / (vl * num_vectors);
+    remainder = (len/sizeof(short)) % (vl * num_vectors);
 
     // Perform the vectorized copy in chunks
     for (size_t i = 0; i < iterations; ++i) {
@@ -390,8 +384,8 @@ void *vector_memcpy_e32(void *dst, const void *src, size_t len, unsigned long in
                   : "0" (vl));
 
     // Calculate iterations and remainder
-    iterations = len / (vl * num_vectors);
-    remainder = len % (vl * num_vectors);
+    iterations = (len/sizeof(int)) / (vl * num_vectors);
+    remainder = (len/sizeof(int)) % (vl * num_vectors);
 
     // Perform the vectorized copy in chunks
     for (size_t i = 0; i < iterations; ++i) {
@@ -492,8 +486,8 @@ void *vector_memcpy_e64(void *dst, const void *src, size_t len, unsigned long in
                   : "0" (vl));
 
     // Calculate iterations and remainder
-    iterations = len / (vl * num_vectors);
-    remainder = len % (vl * num_vectors);
+    iterations = (len/sizeof(int64_t) / (vl * num_vectors);
+    remainder =  (len/sizeof(int64_t) % (vl * num_vectors);
 
     // Perform the vectorized copy in chunks
     for (size_t i = 0; i < iterations; ++i) {
@@ -600,7 +594,7 @@ void *vector_memcpy(void *dst, const void *src, size_t len, size_t element_size,
 		return memcpy(dst, src, len);
 
 
-    //printf("dddddd\n");
+    //printf("dddSTR_HELPERddd\n");
     //fflush(stdout);
 
 }

@@ -8,7 +8,7 @@
 # $HEADER$
 #
 
-
+dist_opaldata_DATA = help-coll-vhx.txt
 sources = \
 	coll_vhx.h \
 	coll_vhx.c \
