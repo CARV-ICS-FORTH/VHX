@@ -146,7 +146,8 @@ int my_xpmem_init(mca_coll_base_module_t * module,
 
 #if defined(__riscv) 
 
-
+#define STR_HELPER(x) #x
+#define STR(x) STR_HELPER(x)
 
 // Macro to generate vector load and store instructions
 #define VLE8_V_REG(src, reg) "vle8.v v" STR(reg) ", (" src ")\n\t"
@@ -486,8 +487,8 @@ void *vector_memcpy_e64(void *dst, const void *src, size_t len, unsigned long in
                   : "0" (vl));
 
     // Calculate iterations and remainder
-    iterations = (len/sizeof(int64_t) / (vl * num_vectors);
-    remainder =  (len/sizeof(int64_t) % (vl * num_vectors);
+    iterations = (len/sizeof(int64_t)) / (vl * num_vectors);
+    remainder =  (len/sizeof(int64_t)) % (vl * num_vectors);
 
     // Perform the vectorized copy in chunks
     for (size_t i = 0; i < iterations; ++i) {
