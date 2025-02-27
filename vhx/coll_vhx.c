@@ -9,7 +9,7 @@
   char * shared_space_name = malloc(strlen(name_chr_s) + 20);
   sprintf(shared_space_name, "%s", name_chr_s);
   * descriptor = shm_open(shared_space_name, O_CREAT | O_RDWR, 0666);
-  ftruncate( * descriptor, size);
+  int res = ftruncate( * descriptor, size);
   free(shared_space_name);
   return mmap(0, size, PROT_WRITE | PROT_READ, MAP_SHARED, * descriptor, 0);
 
@@ -21,7 +21,7 @@ void * vhx_shmem_attach(int * descriptor, size_t size,
   char * shared_space_name = malloc(strlen(name_chr_s) + 1);
   sprintf(shared_space_name, "%s", name_chr_s);
   * descriptor = shm_open(shared_space_name, O_RDWR, 0666);
-  ftruncate( * descriptor, size);
+  int res = ftruncate( * descriptor, size);
   free(shared_space_name);
   return mmap(0, size, PROT_WRITE | PROT_READ, MAP_SHARED, * descriptor, 0);
 
@@ -51,7 +51,7 @@ void  mca_coll_vhx_get_rank_reg(int rank, void *neighbour_vaddr, size_t size, vh
 	
 
 	if(vhx_module->neighbour_endpoints[rank] == NULL)
-	 return NULL;
+	 abort();
 	
 	void *ptr;
 
@@ -115,7 +115,7 @@ int create_shmem_regions(mca_coll_base_module_t * module,
     for (int i = 0; i < comm_size; i++) {
       if (i == rank)
         continue;
-      vhx_module -> neighbour_cico_buffers[i] = attach_to_cico_of_rank(i, vhx_module); //pre attaching to all cico bugffers of other ranks
+      vhx_module -> neighbour_cico_buffers[i] = attach_to_cico_of_rank(i, (mca_coll_base_module_t *)vhx_module); //pre attaching to all cico bugffers of other ranks
     }
 
   }
@@ -619,8 +619,8 @@ int vhx_init(mca_coll_base_module_t * module,
 
   vhx_coll_fns_t vhx_fns = vhx_module_set_fns(comm, vhx_module -> prev_colls); //bring vanilla collective operations back for a while
 
-  create_shmem_regions(vhx_module, comm);
-  my_xpmem_init(vhx_module, comm);
+  create_shmem_regions((mca_coll_base_module_t *)vhx_module, comm);
+  my_xpmem_init((mca_coll_base_module_t *)vhx_module, comm);
   vhx_module_set_fns(comm, vhx_fns); //we replace vanilla collective operations with ours 
   vhx_module->pvt_coll_seq = 0;
   vhx_module -> initialized = true;

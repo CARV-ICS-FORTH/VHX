@@ -21,13 +21,17 @@ VHX supports **zero-copy** data transfer (specifically XPMEM)
 
 In addition, **copy-in-copy-out** (CICO) data transportation can be used for messages of smaller sizes or when XPMEM is not available
 
-* Lock free synchronization:
+* Lock free synchronization
 
 VHX does not rely on locks or atomic function to achieve synchronization between processes. Instead it utilizes a single writer-many readers scheme for the handling of control variables
   
-* Data Pipeling (TODO)
+* Data Pipeling 
 
-VHX will also be able to allow concurrent (in terms of hierarchy) transfer of data  with the use of data pipelining.
+VHX allows concurrent (in terms of hierarchy) transfer of data  with the use of data pipelining.
+
+* Vector Instructions
+
+VHX implements memcopy using Vector Instructions of the RISC-V architecture.
 
 ## Building
 
@@ -45,7 +49,7 @@ When built, VHX should be a candidate betweeen other existing collective compone
  `--mca coll basic,libnbc,vhx`
  
  An example of an execution command follows:
-   `mpirun -np 32  --mca coll basic,libnbc,vhx ----mca coll_vhx_priority 100 ./executable_name`
+   `mpirun -np 32  --mca coll basic,libnbc,vhx ----mca coll_vhx_priority 100 --mca coll_vhx_hierarchy numa ./executable_name`
  
  
  

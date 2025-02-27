@@ -100,7 +100,7 @@ int reduce_internal_cico(const void * sbuf, void * rbuf,
   for (int i = 0; i < hier_size; i++) {
     vhx_hier_group_t * hier_group = & (vhx_module -> hier_groups[i]);
     hier_group -> shared_ctrl_vars[rank].rbuf_vaddr = rbuf;
-    hier_group -> shared_ctrl_vars[rank].sbuf_vaddr = sbuf;
+    hier_group -> shared_ctrl_vars[rank].sbuf_vaddr = (void*) sbuf;
     if (rank == hier_group -> leader) {
 	//	printf(" i am leader %d lvl %d\n", rank, i);
       hier_group -> shared_ctrl_vars[rank].coll_seq = pvt_seq;
@@ -115,9 +115,9 @@ int reduce_internal_cico(const void * sbuf, void * rbuf,
 
         if (!do_cico) {
           mca_coll_vhx_get_rank_reg(hier_group -> real_members[j], hier_group -> members_shared_ctrl_vars[hier_group -> real_members[j]].sbuf_vaddr,
-            bytes_total, & (hier_group -> sbuf_regs[hier_group -> real_members[j]]), vhx_module, ompi_comm, & hier_group -> neighbour_sbufs[hier_group -> real_members[j]]);
+            bytes_total, & (hier_group -> sbuf_regs[hier_group -> real_members[j]]), (mca_coll_base_module_t *)vhx_module, ompi_comm, & hier_group -> neighbour_sbufs[hier_group -> real_members[j]]);
           mca_coll_vhx_get_rank_reg(hier_group -> real_members[j], hier_group -> members_shared_ctrl_vars[hier_group -> real_members[j]].rbuf_vaddr,
-            bytes_total, & (hier_group -> rbuf_regs[hier_group -> real_members[j]]), vhx_module, ompi_comm, & hier_group -> neighbour_rbufs[hier_group -> real_members[j]]);
+            bytes_total, & (hier_group -> rbuf_regs[hier_group -> real_members[j]]), (mca_coll_base_module_t *)vhx_module, ompi_comm, & hier_group -> neighbour_rbufs[hier_group -> real_members[j]]);
         }
 
         int reduced_chunks = 0;
@@ -216,7 +216,7 @@ int reduce_internal_xpmem(const void * sbuf, void * rbuf,
       vhx_hier_group_t * hier_group = & (vhx_module -> hier_groups[i]);
       hier_group -> shared_ctrl_vars[rank].rbuf_vaddr = rbuf;
 
-      hier_group -> shared_ctrl_vars[rank].sbuf_vaddr = sbuf;
+      hier_group -> shared_ctrl_vars[rank].sbuf_vaddr = (void*) sbuf;
       int registration_done = 0;
       if (rank == hier_group -> leader) {
         if (i == 0)
@@ -269,19 +269,19 @@ int reduce_internal_xpmem(const void * sbuf, void * rbuf,
         //	return;
         if (i == 0 && !registration_done)
           mca_coll_vhx_get_rank_reg(src_rank, hier_group -> shared_ctrl_vars[src_rank].sbuf_vaddr,
-            bytes_total, & (hier_group -> sbuf_regs[src_rank]), vhx_module, ompi_comm, & hier_group -> neighbour_sbufs[src_rank]);
+            bytes_total, & (hier_group -> sbuf_regs[src_rank]), (mca_coll_base_module_t *)vhx_module, ompi_comm, & hier_group -> neighbour_sbufs[src_rank]);
         else if (!registration_done)
           mca_coll_vhx_get_rank_reg(src_rank, hier_group -> shared_ctrl_vars[src_rank].rbuf_vaddr,
-            bytes_total, & (hier_group -> rbuf_regs[src_rank]), vhx_module, ompi_comm, & hier_group -> neighbour_rbufs[src_rank]);
+            bytes_total, & (hier_group -> rbuf_regs[src_rank]), (mca_coll_base_module_t *)vhx_module, ompi_comm, & hier_group -> neighbour_rbufs[src_rank]);
         if (!registration_done)
           mca_coll_vhx_get_rank_reg(hier_group -> leader, hier_group -> shared_ctrl_vars[hier_group -> leader].rbuf_vaddr,
-            bytes_total, & (hier_group -> rbuf_regs[hier_group -> leader]), vhx_module, ompi_comm, & hier_group -> neighbour_rbufs[hier_group -> leader]);
+            bytes_total, & (hier_group -> rbuf_regs[hier_group -> leader]), (mca_coll_base_module_t *)vhx_module, ompi_comm, & hier_group -> neighbour_rbufs[hier_group -> leader]);
         registration_done = 1;
         if (i == 0 && src_rank == hier_group -> leader) {
 
 
           mca_coll_vhx_get_rank_reg(hier_group -> leader, hier_group -> shared_ctrl_vars[hier_group -> leader].sbuf_vaddr,
-            bytes_total, & (hier_group -> sbuf_regs[hier_group -> leader]), vhx_module, ompi_comm, & hier_group -> neighbour_sbufs[hier_group -> leader]);
+            bytes_total, & (hier_group -> sbuf_regs[hier_group -> leader]), (mca_coll_base_module_t *)vhx_module, ompi_comm, & hier_group -> neighbour_sbufs[hier_group -> leader]);
           ompi_3buff_op_reduce(op, (char * ) sbuf + offset, (char * ) hier_group -> neighbour_sbufs[hier_group -> leader] + offset, (char * ) hier_group -> neighbour_rbufs[hier_group -> leader] + offset, reduce_count, datatype);
 
         } else {
@@ -344,7 +344,7 @@ int allreduce_bcast(void * buf, int count, ompi_datatype_t * datatype, int root,
   int src_rank;
   vhx_hier_group_t * src_hier_group = NULL;
   if (root != rank) {
-    set_bcast_source(rank, vhx_module, & src_hier_group);
+    set_bcast_source(rank, (mca_coll_base_module_t * )vhx_module, & src_hier_group);
     if (!src_hier_group)
       abort();
 

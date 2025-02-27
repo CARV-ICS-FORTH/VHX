@@ -120,15 +120,13 @@ typedef struct vhx_rank_info_t vhx_rank_info_t;
 typedef struct vhx_member_info_t vhx_member_info_t;
 typedef struct vhx_comm_info_t vhx_comm_info_t;
 
-typedef struct vhx_reduce_queue_item_t vhx_rq_item_t;
 typedef void vhx_copy_data_t;
 typedef int vhx_ds;
 typedef struct vhx_coll_fns_t vhx_coll_fns_t;
 typedef struct vhx_hier_group_t vhx_hier_group_t;
 typedef void * vhx_reg_t;
-OMPI_MODULE_DECLSPEC extern mca_coll_vhx_component_t mca_coll_vhx_component;
+OMPI_DECLSPEC extern mca_coll_vhx_component_t mca_coll_vhx_component;
 OMPI_DECLSPEC OBJ_CLASS_DECLARATION(mca_coll_vhx_module_t);
-OMPI_DECLSPEC OBJ_CLASS_DECLARATION(vhx_rq_item_t);
 
 // ----------------------------------------
 
@@ -270,7 +268,9 @@ int vhx_module_prepare_hierarchy(mca_coll_vhx_module_t *module,
 
 int vhx_init(mca_coll_base_module_t *module, ompi_communicator_t *comm);
 void vhx_destroy_data(mca_coll_vhx_module_t *module);
-
+void *vector_memcpy(void *dst, const void *src, size_t len, size_t element_size, unsigned long int vector_number);
+void  mca_coll_vhx_get_rank_reg(int rank, void *neighbour_vaddr, size_t size, vhx_reg_t **reg, mca_coll_base_module_t * module,
+  ompi_communicator_t * comm, void ** ptr_test);
 
 
 // Primitives (respective file)
@@ -289,9 +289,15 @@ int mca_coll_vhx_allreduce(const void *sbuf, void *rbuf,
 	int count, ompi_datatype_t *datatype, ompi_op_t *op,
 	ompi_communicator_t *comm, mca_coll_base_module_t *module);
 
+int vhx_ack_wave(int rank, vhx_module_t * vhx_module, int pvt_seq);
 
+int set_vaddr(int my_rank, mca_coll_base_module_t * module, void * sbuf);
 
-
+int set_bcast_source(int my_rank, mca_coll_base_module_t * module, vhx_hier_group_t ** src_hier_group);
+int set_bytes_ready(int my_rank,  vhx_module_t  * vhx_module, size_t bytes);
+int mca_coll_vhx_allreduce_internal(const void * sbuf, void * rbuf,
+  int count, ompi_datatype_t * datatype, ompi_op_t * op,
+  ompi_communicator_t * ompi_comm, mca_coll_base_module_t * module, int bcast);
 END_C_DECLS
 
 #endif

@@ -158,13 +158,13 @@ int vhx_module_prepare_hierarchy(mca_coll_vhx_module_t *module,
 
 		const char *hierarchy = mca_coll_vhx_component.hierarchy_mca;
 		int hierarchy_size = 1;
-		for(char * tmp =hierarchy; *tmp != '\0'; tmp++)
+		for(char * tmp =(char *)hierarchy; *tmp != '\0'; tmp++)
 			if (*tmp == ',')  //counting commas in string, to determine the size of hierarchy
 				hierarchy_size++;
 		opal_hwloc_locality_t *  locality_levels;	
 		locality_levels = malloc((hierarchy_size) * sizeof(opal_hwloc_locality_t));
 		
-		char * pos = strtok(hierarchy, ",");
+		char * pos = strtok((char*)hierarchy, ",");
 		int i=0;
 		while(pos){ //we create an array of hwloc locality bit values based on the hierarchy string the user provided
 			

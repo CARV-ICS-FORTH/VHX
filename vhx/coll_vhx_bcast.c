@@ -170,7 +170,7 @@ int mca_coll_vhx_bcast(void * buf, int count, ompi_datatype_t * datatype, int ro
 
   bool do_cico = (bytes_total <= OMPI_vhx_CICO_MAX);
  
-  set_leader(root, vhx_module, ompi_comm);
+  set_leader(root, (mca_coll_base_module_t *)vhx_module, ompi_comm);
   if (do_cico && root == rank)
    vector_memcpy((char * )(vhx_module -> cico_buffer), buf, bytes_total, OMPI_vhx_VECTOR_ELEM_SIZE, OMPI_vhx_VECTORS_NUMBER);
 	
@@ -184,14 +184,14 @@ int mca_coll_vhx_bcast(void * buf, int count, ompi_datatype_t * datatype, int ro
  int src_rank;
  vhx_hier_group_t * src_hier_group = NULL;
  if (root != rank){
-	set_bcast_source(rank, vhx_module, &src_hier_group);
+	set_bcast_source(rank, (mca_coll_base_module_t *)vhx_module, &src_hier_group);
 	if (!src_hier_group)
 		abort();
  
   src_rank = src_hier_group->leader;
  }
 
-			set_coll_seq_all_levels(rank, vhx_module, pvt_seq );
+			set_coll_seq_all_levels(rank, (mca_coll_base_module_t *)vhx_module, pvt_seq );
 				if(root == rank){
 					 vhx_ack_wave(rank, vhx_module, pvt_seq);
 
@@ -216,7 +216,7 @@ int mca_coll_vhx_bcast(void * buf, int count, ompi_datatype_t * datatype, int ro
 					vector_memcpy((src_hier_group == &(vhx_module->hier_groups[0])) ? (char*) buf + bytes_copied : (char * )(vhx_module -> cico_buffer) + bytes_copied, (char * )(vhx_module -> neighbour_cico_buffers[src_hier_group -> leader]) + bytes_copied, bytes_to_be_copied, OMPI_vhx_VECTOR_ELEM_SIZE, OMPI_vhx_VECTORS_NUMBER);
 				else{
 					mca_coll_vhx_get_rank_reg(src_hier_group -> leader, src_hier_group -> shared_ctrl_vars[0].sbuf_vaddr,
-					bytes_total, & (src_hier_group -> sbuf_regs[src_rank]), vhx_module, ompi_comm, & src_hier_group -> neighbour_sbufs[src_rank]);
+					bytes_total, & (src_hier_group -> sbuf_regs[src_rank]), (mca_coll_base_module_t *)vhx_module, ompi_comm, & src_hier_group -> neighbour_sbufs[src_rank]);
 					vector_memcpy((char*) buf + bytes_copied, (char * )(src_hier_group -> neighbour_sbufs[src_rank]) + bytes_copied, bytes_to_be_copied,OMPI_vhx_VECTOR_ELEM_SIZE, OMPI_vhx_VECTORS_NUMBER);
 				}
 
