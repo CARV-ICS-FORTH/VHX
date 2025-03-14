@@ -38,7 +38,7 @@ OBJ_CLASS_INSTANCE(mca_coll_vhx_module_t,
 
 mca_coll_base_module_t *mca_coll_vhx_module_comm_query(
 		struct ompi_communicator_t *comm, int *priority) {
-	printf("MPHKA\n");
+
 	if((*priority = mca_coll_vhx_component.priority) < 0)
 		return NULL;
 	
