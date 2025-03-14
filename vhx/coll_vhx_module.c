@@ -38,7 +38,7 @@ OBJ_CLASS_INSTANCE(mca_coll_vhx_module_t,
 
 mca_coll_base_module_t *mca_coll_vhx_module_comm_query(
 		struct ompi_communicator_t *comm, int *priority) {
-	
+	printf("MPHKA\n");
 	if((*priority = mca_coll_vhx_component.priority) < 0)
 		return NULL;
 	
@@ -108,6 +108,11 @@ int mca_coll_vhx_module_enable(mca_coll_base_module_t *module,
 	SAVE_COLL(vhx_module->prev_colls, allreduce);
 	SAVE_COLL(vhx_module->prev_colls, reduce);
 	
+    if(status != OMPI_SUCCESS) {
+		opal_show_help("help-coll-vhx.txt", "vhx-module-save-error", true);
+		return status;
+
+	}
 	if(vhx_module_prepare_hierarchy(vhx_module, comm) != 0) {
 		status = OMPI_ERROR;
 		return status;

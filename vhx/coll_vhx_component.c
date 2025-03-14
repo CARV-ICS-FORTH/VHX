@@ -72,7 +72,7 @@ mca_coll_vhx_component_t mca_coll_vhx_component = {
 		.collm_comm_query = mca_coll_vhx_module_comm_query,
 	},
 	
-	.priority = 0,
+	.priority = 40,
 	.print_info = false,
 	.cico_max = 1024,
 	.shmem_backing = NULL,
@@ -99,7 +99,6 @@ int mca_coll_vhx_component_init_query(bool enable_progress_threads,
 
 static int vhx_register(void) {
 	mca_base_var_enum_t *var_enum;
-	char *desc;
 	int ret;
 	
 	/* Priority */
@@ -111,10 +110,10 @@ static int vhx_register(void) {
 	
 
 	(void) mca_base_component_var_register(&mca_coll_vhx_component.super.collm_version,
-		"hierarchy", desc, MCA_BASE_VAR_TYPE_STRING, NULL, 0, 0, OPAL_INFO_LVL_4,
+		"hierarchy", "Hierarchy used in the vhx component", MCA_BASE_VAR_TYPE_STRING, NULL, 0, 0, OPAL_INFO_LVL_4,
 		MCA_BASE_VAR_SCOPE_READONLY, &mca_coll_vhx_component.hierarchy_mca);
 	
-	free(desc); desc = NULL;
+
 	(void) mca_base_component_var_register(&mca_coll_vhx_component.super.collm_version,
 	"chunk_size", "Chunk Size for VHX's pipelining",
 	MCA_BASE_VAR_TYPE_SIZE_T, NULL, 0, 0, OPAL_INFO_LVL_5,
@@ -125,12 +124,12 @@ static int vhx_register(void) {
 		MCA_BASE_VAR_TYPE_SIZE_T, NULL, 0, 0, OPAL_INFO_LVL_5,
 		MCA_BASE_VAR_SCOPE_READONLY, &mca_coll_vhx_component.cico_max);
 	(void) mca_base_component_var_register(&mca_coll_vhx_component.super.collm_version,
-		"vectors_number", "Number of vectros used in Vector Copy",
+		"vectors_number", "Number of vectors used in Vector Copy",
 		MCA_BASE_VAR_TYPE_SIZE_T, NULL, 0, 0, OPAL_INFO_LVL_5,
 		MCA_BASE_VAR_SCOPE_READONLY, &mca_coll_vhx_component.vectors_number);	
 		
 			(void) mca_base_component_var_register(&mca_coll_vhx_component.super.collm_version,
-		"vector_elem_size", desc, MCA_BASE_VAR_TYPE_SIZE_T, NULL, 0, 0, OPAL_INFO_LVL_5,
+		"vector_elem_size", "Vector Element Size used in Vector Instructions", MCA_BASE_VAR_TYPE_SIZE_T, NULL, 0, 0, OPAL_INFO_LVL_5,
 		MCA_BASE_VAR_SCOPE_READONLY, &mca_coll_vhx_component.vector_elem_size);
 		
 	mca_coll_vhx_component.shmem_backing = (access("/dev/shm", W_OK) == 0 ?

@@ -1,3 +1,5 @@
 [vhx-smsc-no-map]
 WARNING: coll/vhx optimally requires XPMEM.
 CICO will be used instead.
+[vhx-module-save-error]
+WARNING: coll/vhx won't be enabled.
