@@ -85,7 +85,7 @@ static inline void WAIT_FLAG(volatile int *flag,
 	bool ready = false;
 	
 	do {
-		for(int i = 0; i < 10000; i++) {
+		for(int i = 0; i < 1000; i++) {
 			if(CHECK_FLAG(flag, thresh)) {
 				ready = true;
 				break;
@@ -232,11 +232,9 @@ struct vhx_member_ctrl_t {
 	
 	void* volatile sbuf_vaddr;
 	void* volatile rbuf_vaddr;
-	volatile int cico_id;
 	
-	// reduction progress counters, written by member
-	//volatile xf_int_t reduce_ready;
-	//volatile xf_int_t reduce_done;
+	volatile int reduce_done	
+
 } __attribute__((aligned(64)));
 
 // ----------------------------------------
@@ -291,10 +289,10 @@ int mca_coll_vhx_allreduce(const void *sbuf, void *rbuf,
 
 int vhx_ack_wave(int rank, vhx_module_t * vhx_module, int pvt_seq);
 
-int set_vaddr(int my_rank, mca_coll_base_module_t * module, void * sbuf);
+int vhx_set_vaddr(int my_rank, mca_coll_base_module_t * module, void * sbuf);
 
-int set_bcast_source(int my_rank, mca_coll_base_module_t * module, vhx_hier_group_t ** src_hier_group);
-int set_bytes_ready(int my_rank,  vhx_module_t  * vhx_module, size_t bytes);
+int vhx_set_bcast_source(int my_rank, mca_coll_base_module_t * module, vhx_hier_group_t ** src_hier_group);
+int vhx_set_bytes_ready(int my_rank,  vhx_module_t  * vhx_module, size_t bytes);
 int mca_coll_vhx_allreduce_internal(const void * sbuf, void * rbuf,
   int count, ompi_datatype_t * datatype, ompi_op_t * op,
   ompi_communicator_t * ompi_comm, mca_coll_base_module_t * module, int bcast);

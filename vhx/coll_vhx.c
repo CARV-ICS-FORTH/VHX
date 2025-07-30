@@ -162,424 +162,334 @@ int my_xpmem_init(mca_coll_base_module_t * module,
 #define VLE64_V_REG(src, reg) "vle64.v v" STR(reg) ", (" src ")\n\t"
 #define VSE64_V_REG(dst, reg) "vse64.v v" STR(reg) ", (" dst ")\n\t"
 
-#define VLE128_V_REG(src, reg) "vle128.v v" STR(reg) ", (" src ")\n\t"
-#define VSE128_V_REG(dst, reg) "vse128.v v" STR(reg) ", (" dst ")\n\t"
-
 
 // Vector memcpy function
 
+__attribute__((target("arch=rv64gcv0p7"))) //Uncomment for vector 0.7 (or include the respective -march flags in the component's Makefile.am)
+//__attribute__((target("arch=rv64gcv")))  //Uncomment for vector 1.0 (or include the respective -march flags in the component's Makefile.am)
 
-void *vector_memcpy_e8(void *dst, const void *src, size_t len, unsigned long int num_vectors){
-    unsigned long int vl, iterations, remainder;
-    const uint8_t *src_c = (const uint8_t *)src;
-    uint8_t *dst_c = (uint8_t *)dst;
-  
-
-   
-    asm volatile ("vsetvli %[vl], zero, e8, m1, ta, ma"
-                  : [vl] "=r" (vl)
-                  : "0" (vl));
-    
-    
-    iterations = len / (vl * num_vectors);
-    remainder = len % (vl * num_vectors);
-
-    // Perform the vectorized copy in chunks
-    for (size_t i = 0; i < iterations; ++i) {
-        for (int j = 0; j < num_vectors; ++j) {
-            switch (j) {
-                case 0:
-                    asm volatile (
-                        VLE8_V_REG("%[src]", 2)
-                        VSE8_V_REG("%[dst]", 2)
-                        :
-                        : [src] "r" (src_c + j * vl), [dst] "r" (dst_c + j * vl)
-                        : "memory");
-                    break;
-                case 1:
-                    asm volatile (
-                        VLE8_V_REG("%[src]", 3)
-                        VSE8_V_REG("%[dst]", 3)
-                        :
-                        : [src] "r" (src_c + j * vl), [dst] "r" (dst_c + j * vl)
-                        : "memory");
-                    break;
-                case 2:
-                    asm volatile (
-                        VLE8_V_REG("%[src]", 4)
-                        VSE8_V_REG("%[dst]", 4)
-                        :
-                        : [src] "r" (src_c + j * vl), [dst] "r" (dst_c + j * vl)
-                        : "memory");
-                    break;
-                case 3:
-                    asm volatile (
-                        VLE8_V_REG("%[src]", 5)
-                        VSE8_V_REG("%[dst]", 5)
-                        :
-                        : [src] "r" (src_c + j * vl), [dst] "r" (dst_c + j * vl)
-                        : "memory");
-                    break;
-            }
-        }
-        dst_c += vl * num_vectors;
-        src_c += vl * num_vectors;
-    }
-
-    // Handle the remainder
-    if (remainder > 0) {
-        asm volatile ("vsetvli %[vl], %[remainder], e8, m1, ta, ma"
-                      : [vl] "=r" (vl)
-                      : [remainder] "r" (remainder));
-        for (int j = 0; j < num_vectors && j * vl < remainder; ++j) {
-            switch (j) {
-                case 0:
-                    asm volatile (
-                        VLE8_V_REG("%[src]", 2)
-                        VSE8_V_REG("%[dst]", 2)
-                        :
-                        : [src] "r" (src_c + j * vl), [dst] "r" (dst_c + j * vl)
-                        : "memory");
-                    break;
-                case 1:
-                    asm volatile (
-                        VLE8_V_REG("%[src]", 3)
-                        VSE8_V_REG("%[dst]", 3)
-                        :
-                        : [src] "r" (src_c + j * vl), [dst] "r" (dst_c + j * vl)
-                        : "memory");
-                    break;
-                case 2:
-                    asm volatile (
-                        VLE8_V_REG("%[src]", 4)
-                        VSE8_V_REG("%[dst]", 4)
-                        :
-                        : [src] "r" (src_c + j * vl), [dst] "r" (dst_c + j * vl)
-                        : "memory");
-                    break;
-                case 3:
-                    asm volatile (
-                        VLE8_V_REG("%[src]", 5)
-                        VSE8_V_REG("%[dst]", 5)
-                        :
-                        : [src] "r" (src_c + j * vl), [dst] "r" (dst_c + j * vl)
-                        : "memory");
-                    break;
-            }
-        }
-    }
-
-    return dst;
-}
-
-
-void *vector_memcpy_e16(void *dst, const void *src, size_t len, unsigned long int num_vectors){
+void * vector_memcpy_e8(void * dst,
+  const void * src, size_t len, unsigned long int num_vectors) {
   unsigned long int vl, iterations, remainder;
-    const uint8_t *src_c = (const uint8_t *)src;
-    uint8_t *dst_c = (uint8_t *)dst;
-  
-    asm volatile ("vsetvli %[vl], zero, e16, m1, ta, ma"
-                  : [vl] "=r" (vl)
-                  : "0" (vl));
+  const uint8_t * src_c = (const uint8_t * ) src;
+  uint8_t * dst_c = (uint8_t * ) dst;
 
+  if (num_vectors == 1)
+    asm volatile("vsetvli %[vl], x0, e8, m1, tu, mu": [vl]
+      "=r"(vl): "0"(vl));
+  else if (num_vectors == 2)
+    asm volatile("vsetvli %[vl], x0, e8, m2, tu, mu": [vl]
+      "=r"(vl): "0"(vl));
+  else if (num_vectors == 4)
+    asm volatile("vsetvli %[vl], x0, e8, m4, tu, mu": [vl]
+      "=r"(vl): "0"(vl));
+  else if (num_vectors == 8)
+    asm volatile("vsetvli %[vl], x0, e8, m8, tu, mu": [vl]
+      "=r"(vl));
+  
+  iterations = len / (vl);
+  remainder = len % (vl);
+
+  // Perform the vectorized copy in chunks
+  for (size_t i = 0; i < iterations; ++i) {
+    asm volatile(
+      VLE8_V_REG("%[src]", 0) VSE8_V_REG("%[dst]", 0):
+      : [src]
+      "r"(src_c), [dst]
+      "r"(dst_c): "memory");
+
+    dst_c += vl;
+    src_c += vl;
+  }
+
+  // Handle the remainder
+  if (remainder > 0) {
     
-    iterations = (len/sizeof(short)) / (vl * num_vectors);
-    remainder = (len/sizeof(short)) % (vl * num_vectors);
+    if (num_vectors == 1)
+      asm volatile("vsetvli %[vl], %[remainder], e8, m1, tu, mu": [vl]
+        "=r"(vl): [remainder]
+        "r"(remainder));
+    else if (num_vectors == 2)
+      asm volatile("vsetvli %[vl], %[remainder], e8, m2, tu, mu": [vl]
+        "=r"(vl): [remainder]
+        "r"(remainder));
+    else if (num_vectors == 4)
+      asm volatile("vsetvli %[vl], %[remainder], e8, m4, tu, mu": [vl]
+        "=r"(vl): [remainder]
+        "r"(remainder));
+    else if (num_vectors == 8)
+      asm volatile("vsetvli %[vl], %[remainder], e8, m8, tu, mu": [vl]
+        "=r"(vl): [remainder]
+        "r"(remainder));
 
-    // Perform the vectorized copy in chunks
-    for (size_t i = 0; i < iterations; ++i) {
-        for (int j = 0; j < num_vectors; ++j) {
-            switch (j) {
-                case 0:
-                    asm volatile (
-                        VLE16_V_REG("%[src]", 2)
-                        VSE16_V_REG("%[dst]", 2)
-                        :
-                        : [src] "r" (src_c + j * vl), [dst] "r" (dst_c + j * vl)
-                        : "memory");
-                    break;
-                case 1:
-                    asm volatile (
-                        VLE16_V_REG("%[src]", 3)
-                        VSE16_V_REG("%[dst]", 3)
-                        :
-                        : [src] "r" (src_c + j * vl), [dst] "r" (dst_c + j * vl)
-                        : "memory");
-                    break;
-                case 2:
-                    asm volatile (
-                        VLE16_V_REG("%[src]", 4)
-                        VSE16_V_REG("%[dst]", 4)
-                        :
-                        : [src] "r" (src_c + j * vl), [dst] "r" (dst_c + j * vl)
-                        : "memory");
-                    break;
-                case 3:
-                    asm volatile (
-                        VLE16_V_REG("%[src]", 5)
-                        VSE16_V_REG("%[dst]", 5)
-                        :
-                        : [src] "r" (src_c + j * vl), [dst] "r" (dst_c + j * vl)
-                        : "memory");
-                    break;
-            }
-        }
-        dst_c += vl * num_vectors;
-        src_c += vl * num_vectors;
-    }
+    asm volatile(
+      VLE8_V_REG("%[src]", 0) VSE8_V_REG("%[dst]", 0):
+      : [src]
+      "r"(src_c), [dst]
+      "r"(dst_c): "memory");
+  }
 
-    // Handle the remainder
-    if (remainder > 0) {
-        asm volatile ("vsetvli %[vl], %[remainder], e8, m1, ta, ma"
-                      : [vl] "=r" (vl)
-                      : [remainder] "r" (remainder));
-        for (int j = 0; j < num_vectors && j * vl < remainder; ++j) {
-            switch (j) {
-                case 0:
-                    asm volatile (
-                        VLE16_V_REG("%[src]", 2)
-                        VSE16_V_REG("%[dst]", 2)
-                        :
-                        : [src] "r" (src_c + j * vl), [dst] "r" (dst_c + j * vl)
-                        : "memory");
-                    break;
-                case 1:
-                    asm volatile (
-                        VLE16_V_REG("%[src]", 3)
-                        VSE16_V_REG("%[dst]", 3)
-                        :
-                        : [src] "r" (src_c + j * vl), [dst] "r" (dst_c + j * vl)
-                        : "memory");
-                    break;
-                case 2:
-                    asm volatile (
-                        VLE16_V_REG("%[src]", 4)
-                        VSE16_V_REG("%[dst]", 4)
-                        :
-                        : [src] "r" (src_c + j * vl), [dst] "r" (dst_c + j * vl)
-                        : "memory");
-                    break;
-                case 3:
-                    asm volatile (
-                        VLE16_V_REG("%[src]", 5)
-                        VSE16_V_REG("%[dst]", 5)
-                        :
-                        : [src] "r" (src_c + j * vl), [dst] "r" (dst_c + j * vl)
-                        : "memory");
-                    break;
-            }
-        }
-    }
-
-    return dst;
-}
-
-void *vector_memcpy_e32(void *dst, const void *src, size_t len, unsigned long int num_vectors){
-
-	  unsigned long int vl, iterations, remainder;
-    const uint8_t *src_c = (const uint8_t *)src;
-    uint8_t *dst_c = (uint8_t *)dst;
-  
-    asm volatile ("vsetvli %[vl], zero, e32, m1, ta, ma"
-                  : [vl] "=r" (vl)
-                  : "0" (vl));
-
-    // Calculate iterations and remainder
-    iterations = (len/sizeof(int)) / (vl * num_vectors);
-    remainder = (len/sizeof(int)) % (vl * num_vectors);
-
-    // Perform the vectorized copy in chunks
-    for (size_t i = 0; i < iterations; ++i) {
-        for (int j = 0; j < num_vectors; ++j) {
-            switch (j) {
-                case 0:
-                    asm volatile (
-                        VLE32_V_REG("%[src]", 2)
-                        VSE32_V_REG("%[dst]", 2)
-                        :
-                        : [src] "r" (src_c + j * vl), [dst] "r" (dst_c + j * vl)
-                        : "memory");
-                    break;
-                case 1:
-                    asm volatile (
-                        VLE32_V_REG("%[src]", 3)
-                        VSE32_V_REG("%[dst]", 3)
-                        :
-                        : [src] "r" (src_c + j * vl), [dst] "r" (dst_c + j * vl)
-                        : "memory");
-                    break;
-                case 2:
-                    asm volatile (
-                        VLE32_V_REG("%[src]", 4)
-                        VSE32_V_REG("%[dst]", 4)
-                        :
-                        : [src] "r" (src_c + j * vl), [dst] "r" (dst_c + j * vl)
-                        : "memory");
-                    break;
-                case 3:
-                    asm volatile (
-                        VLE32_V_REG("%[src]", 5)
-                        VSE32_V_REG("%[dst]", 5)
-                        :
-                        : [src] "r" (src_c + j * vl), [dst] "r" (dst_c + j * vl)
-                        : "memory");
-                    break;
-            }
-        }
-        dst_c += vl * num_vectors;
-        src_c += vl * num_vectors;
-    }
-
-    // Handle the remainder
-    if (remainder > 0) {
-        asm volatile ("vsetvli %[vl], %[remainder], e8, m1, ta, ma"
-                      : [vl] "=r" (vl)
-                      : [remainder] "r" (remainder));
-        for (int j = 0; j < num_vectors && j * vl < remainder; ++j) {
-            switch (j) {
-                case 0:
-                    asm volatile (
-                        VLE32_V_REG("%[src]", 2)
-                        VSE32_V_REG("%[dst]", 2)
-                        :
-                        : [src] "r" (src_c + j * vl), [dst] "r" (dst_c + j * vl)
-                        : "memory");
-                    break;
-                case 1:
-                    asm volatile (
-                        VLE32_V_REG("%[src]", 3)
-                        VSE32_V_REG("%[dst]", 3)
-                        :
-                        : [src] "r" (src_c + j * vl), [dst] "r" (dst_c + j * vl)
-                        : "memory");
-                    break;
-                case 2:
-                    asm volatile (
-                        VLE32_V_REG("%[src]", 4)
-                        VSE32_V_REG("%[dst]", 4)
-                        :
-                        : [src] "r" (src_c + j * vl), [dst] "r" (dst_c + j * vl)
-                        : "memory");
-                    break;
-                case 3:
-                    asm volatile (
-                        VLE32_V_REG("%[src]", 5)
-                        VSE32_V_REG("%[dst]", 5)
-                        :
-                        : [src] "r" (src_c + j * vl), [dst] "r" (dst_c + j * vl)
-                        : "memory");
-                    break;
-            }
-        }
-    }
-
-    return dst;
-
-}
-void *vector_memcpy_e64(void *dst, const void *src, size_t len, unsigned long int num_vectors){
-
-	  unsigned long int vl, iterations, remainder;
-    const uint8_t *src_c = (const uint8_t *)src;
-    uint8_t *dst_c = (uint8_t *)dst;
-  
-    asm volatile ("vsetvli %[vl], zero, e64, m1, ta, ma"
-                  : [vl] "=r" (vl)
-                  : "0" (vl));
-
-    // Calculate iterations and remainder
-    iterations = (len/sizeof(int64_t)) / (vl * num_vectors);
-    remainder =  (len/sizeof(int64_t)) % (vl * num_vectors);
-
-    // Perform the vectorized copy in chunks
-    for (size_t i = 0; i < iterations; ++i) {
-        for (int j = 0; j < num_vectors; ++j) {
-            switch (j) {
-                case 0:
-                    asm volatile (
-                        VLE64_V_REG("%[src]", 2)
-                        VSE64_V_REG("%[dst]", 2)
-                        :
-                        : [src] "r" (src_c + j * vl), [dst] "r" (dst_c + j * vl)
-                        : "memory");
-                    break;
-                case 1:
-                    asm volatile (
-                        VLE64_V_REG("%[src]", 3)
-                        VSE64_V_REG("%[dst]", 3)
-                        :
-                        : [src] "r" (src_c + j * vl), [dst] "r" (dst_c + j * vl)
-                        : "memory");
-                    break;
-                case 2:
-                    asm volatile (
-                        VLE64_V_REG("%[src]", 4)
-                        VSE64_V_REG("%[dst]", 4)
-                        :
-                        : [src] "r" (src_c + j * vl), [dst] "r" (dst_c + j * vl)
-                        : "memory");
-                    break;
-                case 3:
-                    asm volatile (
-                        VLE64_V_REG("%[src]", 5)
-                        VSE64_V_REG("%[dst]", 5)
-                        :
-                        : [src] "r" (src_c + j * vl), [dst] "r" (dst_c + j * vl)
-                        : "memory");
-                    break;
-            }
-        }
-        dst_c += vl * num_vectors;
-        src_c += vl * num_vectors;
-    }
-
-    // Handle the remainder
-    if (remainder > 0) {
-        asm volatile ("vsetvli %[vl], %[remainder], e8, m1, ta, ma"
-                      : [vl] "=r" (vl)
-                      : [remainder] "r" (remainder));
-        for (int j = 0; j < num_vectors && j * vl < remainder; ++j) {
-            switch (j) {
-                case 0:
-                    asm volatile (
-                        VLE64_V_REG("%[src]", 2)
-                        VSE64_V_REG("%[dst]", 2)
-                        :
-                        : [src] "r" (src_c + j * vl), [dst] "r" (dst_c + j * vl)
-                        : "memory");
-                    break;
-                case 1:
-                    asm volatile (
-                        VLE64_V_REG("%[src]", 3)
-                        VSE64_V_REG("%[dst]", 3)
-                        :
-                        : [src] "r" (src_c + j * vl), [dst] "r" (dst_c + j * vl)
-                        : "memory");
-                    break;
-                case 2:
-                    asm volatile (
-                        VLE64_V_REG("%[src]", 4)
-                        VSE64_V_REG("%[dst]", 4)
-                        :
-                        : [src] "r" (src_c + j * vl), [dst] "r" (dst_c + j * vl)
-                        : "memory");
-                    break;
-                case 3:
-                    asm volatile (
-                        VLE64_V_REG("%[src]", 5)
-                        VSE64_V_REG("%[dst]", 5)
-                        :
-                        : [src] "r" (src_c + j * vl), [dst] "r" (dst_c + j * vl)
-                        : "memory");
-                    break;
-            }
-        }
-    }
-
-    return dst;
+  return dst;
 
 }
 
- 
+__attribute__((target("arch=rv64gcv0p7"))) //Uncomment for vector 0.7 (or include the respective -march flags in the component's Makefile.am)
+//__attribute__((target("arch=rv64gcv")))  //Uncomment for vector 1.0 (or include the respective -march flags in the component's Makefile.am)
+
+ void * vector_memcpy_e16(void * dst,
+  const void * src, size_t len, unsigned long int num_vectors) {
+  unsigned long int vl, iterations, remainder;
+  const uint8_t * src_c = (const uint8_t * ) src;
+  uint8_t * dst_c = (uint8_t * ) dst;
+
+  if (num_vectors == 1)
+    asm volatile("vsetvli %[vl], x0, e16, m1, tu, mu": [vl]
+      "=r"(vl): "0"(vl));
+  else if (num_vectors == 2)
+    asm volatile("vsetvli %[vl], x0, e16, m2, tu, mu": [vl]
+      "=r"(vl): "0"(vl));
+  else if (num_vectors == 4)
+    asm volatile("vsetvli %[vl], x0, e16, m4, tu, mu": [vl]
+      "=r"(vl): "0"(vl));
+  else if (num_vectors == 8)
+    asm volatile("vsetvli %[vl], x0, e16, m8, tu, mu": [vl]
+      "=r"(vl));
+  else {
+    abort();
+  }
+  unsigned long int vl_bytes = vl * (16 / 8);
+  iterations = len / (vl_bytes);
+  remainder = len % (vl_bytes);
+
+  // Perform the vectorized copy in chunks
+  for (size_t i = 0; i < iterations; ++i) {
+    asm volatile(
+      VLE16_V_REG("%[src]", 0) VSE16_V_REG("%[dst]", 0):
+      : [src]
+      "r"(src_c), [dst]
+      "r"(dst_c): "memory");
+
+    dst_c += vl_bytes;
+    src_c += vl_bytes;
+  }
+
+  // Handle the remainder
+
+  if (remainder > 0) {
+    int remainder_elem = remainder / (16 / 8);
+    int leftover_bytes = remainder % (16 / 8);
+    if (num_vectors == 1)
+      asm volatile("vsetvli %[vl], %[remainder], e16, m1, tu, mu": [vl]
+        "=r"(vl): [remainder]
+        "r"(remainder_elem));
+    else if (num_vectors == 2)
+      asm volatile("vsetvli %[vl], %[remainder], e16, m2, tu, mu": [vl]
+        "=r"(vl): [remainder]
+        "r"(remainder_elem));
+    else if (num_vectors == 4)
+      asm volatile("vsetvli %[vl], %[remainder], e16, m4, tu, mu": [vl]
+        "=r"(vl): [remainder]
+        "r"(remainder_elem));
+    else if (num_vectors == 8)
+      asm volatile("vsetvli %[vl], %[remainder], e16, m8, tu, mu": [vl]
+        "=r"(vl): [remainder]
+        "r"(remainder_elem));
+    
+
+    asm volatile(
+      VLE16_V_REG("%[src]", 0) VSE16_V_REG("%[dst]", 0):
+      : [src]
+      "r"(src_c), [dst]
+      "r"(dst_c): "memory");
+    src_c += remainder_elem * 2;
+    dst_c += remainder_elem * 2;
+   
+   if (leftover_bytes) {
+      int i = leftover_bytes - 1;
+      while (i >= 0) {
+        dst_c[i] = src_c[i];
+        i--;
+      }
+      return dst;
+
+    }
+  }
+
+  return dst;
+
+}
+
+__attribute__((target("arch=rv64gcv0p7"))) //Uncomment for vector 0.7 (or include the respective -march flags in the component's Makefile.am)
+//__attribute__((target("arch=rv64gcv")))  //Uncomment for vector 1.0 (or include the respective -march flags in the component's Makefile.am)
+
+ void * vector_memcpy_e32(void * dst,
+  const void * src, size_t len, unsigned long int num_vectors) {
+  unsigned long int vl, iterations, remainder;
+  const uint8_t * src_c = (const uint8_t * ) src;
+  uint8_t * dst_c = (uint8_t * ) dst;
+
+  if (num_vectors == 1)
+    asm volatile("vsetvli %[vl], x0, e32, m1, tu, mu": [vl]
+      "=r"(vl): "0"(vl));
+  else if (num_vectors == 2)
+    asm volatile("vsetvli %[vl], x0, e32, m2, tu, mu": [vl]
+      "=r"(vl): "0"(vl));
+  else if (num_vectors == 4)
+    asm volatile("vsetvli %[vl], x0, e32, m4, tu, mu": [vl]
+      "=r"(vl): "0"(vl));
+  else if (num_vectors == 8)
+    asm volatile("vsetvli %[vl], x0, e32, m8, tu, mu": [vl]
+      "=r"(vl));
+  else {
+    abort();
+  }
+  unsigned long int vl_bytes = vl * (32/ 8);
+  iterations = len / (vl_bytes);
+  remainder = len % (vl_bytes);
+
+  // Perform the vectorized copy in chunks
+  for (size_t i = 0; i < iterations; ++i) {
+    asm volatile(
+      VLE32_V_REG("%[src]", 0) VSE32_V_REG("%[dst]", 0):
+      : [src]
+      "r"(src_c), [dst]
+      "r"(dst_c): "memory");
+
+    dst_c += vl_bytes;
+    src_c += vl_bytes;
+  }
+
+  // Handle the remainder
+
+  if (remainder > 0) {
+    int remainder_elem = remainder / (32 / 8);
+    int leftover_bytes = remainder % (32 / 8);
+    if (num_vectors == 1)
+      asm volatile("vsetvli %[vl], %[remainder], e32, m1, tu, mu": [vl]
+        "=r"(vl): [remainder]
+        "r"(remainder_elem));
+    else if (num_vectors == 2)
+      asm volatile("vsetvli %[vl], %[remainder], e32, m2, tu, mu": [vl]
+        "=r"(vl): [remainder]
+        "r"(remainder_elem));
+    else if (num_vectors == 4)
+      asm volatile("vsetvli %[vl], %[remainder], e32, m4, tu, mu": [vl]
+        "=r"(vl): [remainder]
+        "r"(remainder_elem));
+    else if (num_vectors == 8)
+      asm volatile("vsetvli %[vl], %[remainder], e32, m8, tu, mu": [vl]
+        "=r"(vl): [remainder]
+        "r"(remainder_elem));
+   
+
+    asm volatile(
+      VLE32_V_REG("%[src]", 0) VSE32_V_REG("%[dst]", 0):
+      : [src]
+      "r"(src_c), [dst]
+      "r"(dst_c): "memory");
+    src_c += remainder_elem * 4;
+    dst_c += remainder_elem * 4;
+   
+   if (leftover_bytes) {
+      int i = leftover_bytes - 1;
+      while (i >= 0) {
+        dst_c[i] = src_c[i];
+        i--;
+      }
+      return dst;
+
+    }
+  }
+
+  return dst;
+
+}
+
+__attribute__((target("arch=rv64gcv0p7"))) //Uncomment for vector 0.7 (or include the respective -march flags in the component's Makefile.am)
+//__attribute__((target("arch=rv64gcv")))  //Uncomment for vector 1.0 (or include the respective -march flags in the component's Makefile.am)
+
+ void * vector_memcpy_e64(void * dst,
+  const void * src, size_t len, unsigned long int num_vectors) {
+  unsigned long int vl, iterations, remainder;
+  const uint8_t * src_c = (const uint8_t * ) src;
+  uint8_t * dst_c = (uint8_t * ) dst;
+
+  if (num_vectors == 1)
+    asm volatile("vsetvli %[vl], x0, e64, m1, tu, mu": [vl]
+      "=r"(vl): "0"(vl));
+  else if (num_vectors == 2)
+    asm volatile("vsetvli %[vl], x0, e64, m2, tu, mu": [vl]
+      "=r"(vl): "0"(vl));
+  else if (num_vectors == 4)
+    asm volatile("vsetvli %[vl], x0, e64, m4, tu, mu": [vl]
+      "=r"(vl): "0"(vl));
+  else if (num_vectors == 8)
+    asm volatile("vsetvli %[vl], x0, e64, m8, tu, mu": [vl]
+      "=r"(vl));
+  else {
+    abort();
+  }
+  unsigned long int vl_bytes = vl * (64/ 8);
+  iterations = len / (vl_bytes);
+  remainder = len % (vl_bytes);
+
+  // Perform the vectorized copy in chunks
+  for (size_t i = 0; i < iterations; ++i) {
+    asm volatile(
+      VLE64_V_REG("%[src]", 0) VSE64_V_REG("%[dst]", 0):
+      : [src]
+      "r"(src_c), [dst]
+      "r"(dst_c): "memory");
+
+    dst_c += vl_bytes;
+    src_c += vl_bytes;
+  }
+
+  // Handle the remainder
+
+  if (remainder > 0) {
+    int remainder_elem = remainder / (64 / 8);
+    int leftover_bytes = remainder % (64 / 8);
+    if (num_vectors == 1)
+      asm volatile("vsetvli %[vl], %[remainder], e64, m1, tu, mu": [vl]
+        "=r"(vl): [remainder]
+        "r"(remainder_elem));
+    else if (num_vectors == 2)
+      asm volatile("vsetvli %[vl], %[remainder], e64, m2, tu, mu": [vl]
+        "=r"(vl): [remainder]
+        "r"(remainder_elem));
+    else if (num_vectors == 4)
+      asm volatile("vsetvli %[vl], %[remainder], e64, m4, tu, mu": [vl]
+        "=r"(vl): [remainder]
+        "r"(remainder_elem));
+    else if (num_vectors == 8)
+      asm volatile("vsetvli %[vl], %[remainder], e64, m8, tu, mu": [vl]
+        "=r"(vl): [remainder]
+        "r"(remainder_elem));
+    
+
+    asm volatile(
+      VLE64_V_REG("%[src]", 0) VSE64_V_REG("%[dst]", 0):
+      : [src]
+      "r"(src_c), [dst]
+      "r"(dst_c): "memory");
+    src_c += remainder_elem * 8;
+    dst_c += remainder_elem * 8;
+   
+   if (leftover_bytes) {
+      int i = leftover_bytes - 1;
+      while (i >= 0) {
+        dst_c[i] = src_c[i];
+        i--;
+      }
+      return dst;
+
+    }
+  }
+
+  return dst;
+
+}
 void *vector_memcpy(void *dst, const void *src, size_t len, size_t element_size, unsigned long int vector_number) {
 
         if(element_size == 1)
@@ -595,8 +505,7 @@ void *vector_memcpy(void *dst, const void *src, size_t len, size_t element_size,
 		return memcpy(dst, src, len);
 
 
-    //printf("dddSTR_HELPERddd\n");
-    //fflush(stdout);
+  
 
 }
 #else

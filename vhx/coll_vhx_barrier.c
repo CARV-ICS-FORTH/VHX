@@ -58,7 +58,7 @@ int mca_coll_vhx_barrier(ompi_communicator_t *ompi_comm,
 	
 	  for (int i = 0; i < hier_size  ; i++){
 		  		vhx_hier_group_t * hier_group = &(vhx_module->hier_groups[i]);
-
+			hier_group->members_shared_ctrl_vars[rank].member_ack = pvt_seq;
 			if(hier_group->leader == rank){
 				hier_group->shared_ctrl_vars->coll_ack = pvt_seq;
 

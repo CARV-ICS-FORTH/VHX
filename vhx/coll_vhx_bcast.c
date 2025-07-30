@@ -10,7 +10,7 @@
 #include "coll_vhx.h"
 
 //the root becomes the leader in all hierarchy groups it participates
-int set_leader(int root, mca_coll_base_module_t * module, ompi_communicator_t * ompi_comm) {
+int vhx_set_leader(int root, mca_coll_base_module_t * module, ompi_communicator_t * ompi_comm) {
 
   vhx_module_t * vhx_module = (vhx_module_t * ) module;
   int hier_size = vhx_module -> hierarchy_size;
@@ -27,7 +27,7 @@ int set_leader(int root, mca_coll_base_module_t * module, ompi_communicator_t * 
   }
   return OMPI_SUCCESS;
 }
-int set_bcast_source(int my_rank, mca_coll_base_module_t * module, vhx_hier_group_t ** src_hier_group){
+int vhx_set_bcast_source(int my_rank, mca_coll_base_module_t * module, vhx_hier_group_t ** src_hier_group){
 	
 	 vhx_module_t * vhx_module = (vhx_module_t * ) module;
   int hier_size = vhx_module -> hierarchy_size;
@@ -48,7 +48,7 @@ int set_bcast_source(int my_rank, mca_coll_base_module_t * module, vhx_hier_grou
 	
 	
 }
-int set_vaddr(int my_rank, mca_coll_base_module_t * module, void * sbuf) {
+int vhx_set_vaddr(int my_rank, mca_coll_base_module_t * module, void * sbuf) {
 
   vhx_module_t * vhx_module = (vhx_module_t * ) module;
   int hier_size = vhx_module -> hierarchy_size;
@@ -63,7 +63,7 @@ int set_vaddr(int my_rank, mca_coll_base_module_t * module, void * sbuf) {
 	return 0;
 }
 
-int set_coll_seq_all_levels(int my_rank, mca_coll_base_module_t * module, int pvt_seq){ //function to change ranks's collseq in all hierarchy groups the ranks belongs to
+int vhx_set_coll_seq_all_levels(int my_rank, mca_coll_base_module_t * module, int pvt_seq){ //function to change ranks's collseq in all hierarchy groups the ranks belongs to
 
   vhx_module_t * vhx_module = (vhx_module_t * ) module;
   int hier_size = vhx_module -> hierarchy_size;
@@ -81,7 +81,7 @@ int set_coll_seq_all_levels(int my_rank, mca_coll_base_module_t * module, int pv
   return 0;
 
 }
-int init_bytes_ready(int my_rank,  vhx_module_t  * module, size_t bytes, int pvt_seq){
+int vhx_init_bytes_ready(int my_rank,  vhx_module_t  * module, size_t bytes, int pvt_seq){
 	
   vhx_module_t * vhx_module = (vhx_module_t * ) module;
   int hier_size = vhx_module -> hierarchy_size;
@@ -92,6 +92,8 @@ int init_bytes_ready(int my_rank,  vhx_module_t  * module, size_t bytes, int pvt
 
 	if (hier_group->leader != my_rank)
 			continue;
+	 while((hier_group->shared_ctrl_vars[0].coll_ack) != pvt_seq -1);
+
     volatile  size_t __attribute__((aligned(SIZEOF_SIZE_T))) * tmp_bytes_available = &(hier_group->shared_ctrl_vars[0].bytes_available);
 	__atomic_store_n(tmp_bytes_available, bytes, __ATOMIC_RELAXED);
 
@@ -99,7 +101,7 @@ int init_bytes_ready(int my_rank,  vhx_module_t  * module, size_t bytes, int pvt
   return 0;
 	
 }
-int set_bytes_ready(int my_rank,  vhx_module_t  * vhx_module, size_t bytes){
+int vhx_set_bytes_ready(int my_rank,  vhx_module_t  * vhx_module, size_t bytes){
 	
   int hier_size = vhx_module -> hierarchy_size;
 
@@ -170,28 +172,28 @@ int mca_coll_vhx_bcast(void * buf, int count, ompi_datatype_t * datatype, int ro
 
   bool do_cico = (bytes_total <= OMPI_vhx_CICO_MAX);
  
-  set_leader(root, (mca_coll_base_module_t *)vhx_module, ompi_comm);
+  vhx_set_leader(root, (mca_coll_base_module_t *)vhx_module, ompi_comm);
   if (do_cico && root == rank)
    vector_memcpy((char * )(vhx_module -> cico_buffer), buf, bytes_total, OMPI_vhx_VECTOR_ELEM_SIZE, OMPI_vhx_VECTORS_NUMBER);
 	
   if (!do_cico)
-    set_vaddr(rank, module, buf);  
+    vhx_set_vaddr(rank, module, buf);  
 						
- init_bytes_ready(rank, vhx_module, (root == rank)?bytes_total:0, pvt_seq);// the root has copied the complete buffer at the beginning of the algortihm
+ vhx_init_bytes_ready(rank, vhx_module, (root == rank)?bytes_total:0, pvt_seq);// the root has copied the complete buffer at the beginning of the algortihm
  int chunk_size = bytes_total;
  if(OMPI_vhx_CHUNK_SIZE)
 	 chunk_size = OMPI_vhx_CHUNK_SIZE;
  int src_rank;
  vhx_hier_group_t * src_hier_group = NULL;
  if (root != rank){
-	set_bcast_source(rank, (mca_coll_base_module_t *)vhx_module, &src_hier_group);
+	vhx_set_bcast_source(rank, (mca_coll_base_module_t *)vhx_module, &src_hier_group);
 	if (!src_hier_group)
 		abort();
  
   src_rank = src_hier_group->leader;
  }
 
-			set_coll_seq_all_levels(rank, (mca_coll_base_module_t *)vhx_module, pvt_seq );
+			vhx_set_coll_seq_all_levels(rank, (mca_coll_base_module_t *)vhx_module, pvt_seq );
 				if(root == rank){
 					 vhx_ack_wave(rank, vhx_module, pvt_seq);
 
@@ -225,7 +227,7 @@ int mca_coll_vhx_bcast(void * buf, int count, ompi_datatype_t * datatype, int ro
 					vector_memcpy((char*)buf + bytes_copied, (char*)vhx_module->cico_buffer + bytes_copied, bytes_to_be_copied,OMPI_vhx_VECTOR_ELEM_SIZE, OMPI_vhx_VECTORS_NUMBER);
 					bytes_copied += bytes_to_be_copied;
 
-				set_bytes_ready(rank, vhx_module, bytes_copied);
+				vhx_set_bytes_ready(rank, vhx_module, bytes_copied);
 				opal_atomic_wmb();
 
 
