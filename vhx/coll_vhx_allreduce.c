@@ -597,11 +597,11 @@ int mca_coll_vhx_allreduce_internal(const void * sbuf, void * rbuf,
 		ompi_comm, module, pvt_seq);
 
 	} else if (bytes_total <= OMPI_vhx_CHUNK_SIZE)
-		vhx_reduce_internal_xpmem(sbuf, rbuf,
+		vhx_reduce_internal_opt2(sbuf, rbuf,
 		count, datatype, op,
 		ompi_comm, module, pvt_seq);
 	else {
-		vhx_reduce_internal_xpmem(sbuf, rbuf,
+		vhx_reduce_internal_opt2(sbuf, rbuf,
 		count, datatype, op,
 		ompi_comm, module, pvt_seq);
 
