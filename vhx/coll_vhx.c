@@ -165,7 +165,7 @@ int my_xpmem_init(mca_coll_base_module_t * module,
 
 // Vector memcpy function
 
-//__attribute__((target("arch=rv64gcv0p7"))) //Uncomment for vector 0.7 (or include the respective -march flags in the component's Makefile.am or ompi's CFLAGS)
+__attribute__((target("arch=rv64gcv0p7"))) //Uncomment for vector 0.7 (or include the respective -march flags in the component's Makefile.am or ompi's CFLAGS)
 //__attribute__((target("arch=rv64gcv")))  //Uncomment for vector 1.0 (or include the respective -march flags in the component's Makefile.am or ompi's CFLAGS)
 
 void * vector_memcpy_e8(void * dst,
@@ -233,7 +233,7 @@ void * vector_memcpy_e8(void * dst,
 
 }
 
-//__attribute__((target("arch=rv64gcv0p7"))) //Uncomment for vector 0.7 (or include the respective -march flags in the component's Makefile.am or ompi's CFLAGS)
+__attribute__((target("arch=rv64gcv0p7"))) //Uncomment for vector 0.7 (or include the respective -march flags in the component's Makefile.am or ompi's CFLAGS)
 //__attribute__((target("arch=rv64gcv")))  //Uncomment for vector 1.0 (or include the respective -march flags in the component's Makefile.am or ompi's CFLAGS)
 
  void * vector_memcpy_e16(void * dst,
@@ -319,7 +319,7 @@ void * vector_memcpy_e8(void * dst,
 
 }
 
-//__attribute__((target("arch=rv64gcv0p7"))) //Uncomment for vector 0.7 (or include the respective -march flags in the component's Makefile.am or ompi's CFLAGS)
+__attribute__((target("arch=rv64gcv0p7"))) //Uncomment for vector 0.7 (or include the respective -march flags in the component's Makefile.am or ompi's CFLAGS)
 //__attribute__((target("arch=rv64gcv")))  //Uncomment for vector 1.0 (or include the respective -march flags in the component's Makefile.am or ompi's CFLAGS)
 
  void * vector_memcpy_e32(void * dst,
@@ -405,7 +405,7 @@ void * vector_memcpy_e8(void * dst,
 
 }
 
-//__attribute__((target("arch=rv64gcv0p7"))) //Uncomment for vector 0.7 (or include the respective -march flags in the component's Makefile.am or ompi's CFLAGS)
+__attribute__((target("arch=rv64gcv0p7"))) //Uncomment for vector 0.7 (or include the respective -march flags in the component's Makefile.am or ompi's CFLAGS)
 //__attribute__((target("arch=rv64gcv")))  //Uncomment for vector 1.0 (or include the respective -march flags in the component's Makefile.am or ompi's CFLAGS)
 
  void * vector_memcpy_e64(void * dst,

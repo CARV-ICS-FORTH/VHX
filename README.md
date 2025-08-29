@@ -49,7 +49,7 @@ When built, VHX should be a candidate betweeen other existing collective compone
  `--mca coll basic,libnbc,vhx`
  
  An example of an execution command follows:
-   `mpirun -np 32  --mca coll basic,libnbc,vhx ----mca coll_vhx_priority 100 --mca coll_vhx_hierarchy numa ./executable_name`
+   `mpirun -np 32  --mca coll basic,libnbc,vhx ----mca coll_vhx_priority 100 --mca coll_vhx_hierarchy numa --map-by core --bind-to core ./executable_name`
  
  
  

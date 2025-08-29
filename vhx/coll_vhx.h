@@ -233,7 +233,7 @@ struct vhx_member_ctrl_t {
 	void* volatile sbuf_vaddr;
 	void* volatile rbuf_vaddr;
 	
-	volatile int reduce_done	
+	volatile int reduce_done;	
 
 } __attribute__((aligned(64)));
 

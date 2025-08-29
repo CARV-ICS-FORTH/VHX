@@ -7,7 +7,12 @@
 
 #include "coll_vhx.h"
 
-
+int vhx_set_barrier_leader(vhx_module_t * vhx_module, int hier_size){ //resetting default leaders in case mpi_bcast has altered them
+	for (int i = 0; i < hier_size  ; i++){
+        vhx_hier_group_t * hier_group = &(vhx_module->hier_groups[i]);
+        hier_group->leader = hier_group->real_members[0];
+	}
+}
 int mca_coll_vhx_barrier(ompi_communicator_t *ompi_comm,
 		mca_coll_base_module_t *module){
 	
@@ -21,21 +26,21 @@ int mca_coll_vhx_barrier(ompi_communicator_t *ompi_comm,
 	}
 	
 	int pvt_seq = ++(vhx_module -> pvt_coll_seq);
-;
-	int hier_size = vhx_module->hierarchy_size;
 
+	int hier_size = vhx_module->hierarchy_size;
+	vhx_set_barrier_leader(vhx_module, hier_size);
 	for (int i = 0; i < hier_size  ; i++){
 		vhx_hier_group_t * hier_group = &(vhx_module->hier_groups[i]);
-		
-			hier_group->members_shared_ctrl_vars[rank].member_seq = pvt_seq;
-	if (rank == hier_group->leader){
-		hier_group->members_shared_ctrl_vars[rank].member_ack = pvt_seq;
 	
-	for (int j = 0; j < hier_group->real_size; j++){ //waitng for SEQ wave
-		if(rank == hier_group->real_members[j] )
-				continue;
+		hier_group->members_shared_ctrl_vars[rank].member_seq = pvt_seq;
+		if (rank == hier_group->leader){
+		
+	
+			for (int j = 0; j < hier_group->real_size; j++){ //waitng for SEQ wave
+				if(rank == hier_group->real_members[j] )
+					continue;
 
-			while(hier_group->members_shared_ctrl_vars[hier_group->real_members[j]].member_seq != pvt_seq);
+				WAIT_FLAG(&hier_group->members_shared_ctrl_vars[hier_group->real_members[j]].member_seq, pvt_seq);
 
 
 		}
@@ -43,30 +48,32 @@ int mca_coll_vhx_barrier(ompi_communicator_t *ompi_comm,
 	else
 		break;
 	}	
-  for (int i = 0; i < hier_size  ; i++){
-					vhx_hier_group_t * hier_group = &(vhx_module->hier_groups[i]);
+  	
+	for (int i = 0; i < hier_size  ; i++){
+		vhx_hier_group_t * hier_group = &(vhx_module->hier_groups[i]);
 
 	
-			if((hier_group->real_members_bitmap[rank] && hier_group->leader != rank)  ){
+		if((hier_group->real_members_bitmap[rank] && hier_group->leader != rank)  ){
 
-				while(hier_group->shared_ctrl_vars->coll_ack != pvt_seq); //waiting for ACK
+			WAIT_FLAG(&hier_group->shared_ctrl_vars->coll_ack, pvt_seq); //waiting for ACK
 
 				
 					break;
-			} 
+		} 
 	}
 	
-	  for (int i = 0; i < hier_size  ; i++){
-		  		vhx_hier_group_t * hier_group = &(vhx_module->hier_groups[i]);
-			hier_group->members_shared_ctrl_vars[rank].member_ack = pvt_seq;
-			if(hier_group->leader == rank){
-				hier_group->shared_ctrl_vars->coll_ack = pvt_seq;
+	for (int i = 0; i < hier_size  ; i++){
+		vhx_hier_group_t * hier_group = &(vhx_module->hier_groups[i]);
+		hier_group->members_shared_ctrl_vars[rank].member_ack = pvt_seq;
+		if(hier_group->leader == rank){
+			hier_group->shared_ctrl_vars->coll_ack = pvt_seq;
 
-			}
-			else
-				break;
+		}
+		else
+			break;
 	}
 
 	return OMPI_SUCCESS;
-		}
+		
+}
 	
